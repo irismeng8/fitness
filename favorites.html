@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Saved - Vitality Fitness</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@4/lib/index.css" />
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/data-service.js"></script>
+
+    <style>
+        .section-head {
+            font-size: 14px;
+            font-weight: 800;
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .section-head .emoji {
+            font-size: 16px;
+            line-height: 1;
+        }
+        .saved-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fff;
+            border-radius: 14px;
+            padding: 11px;
+            margin-bottom: 9px;
+            box-shadow: 0 5px 16px rgba(255,183,178,0.12);
+            border: 1px solid #f8eceb;
+            transform: translateY(8px);
+            opacity: 0;
+            animation: cardIn 0.45s ease forwards;
+        }
+        .saved-item:nth-child(2) { animation-delay: 0.03s; }
+        .saved-item:nth-child(3) { animation-delay: 0.06s; }
+        .saved-item:nth-child(4) { animation-delay: 0.09s; }
+        .saved-item:nth-child(5) { animation-delay: 0.12s; }
+        .saved-item:hover {
+            box-shadow: 0 8px 20px rgba(255,183,178,0.16);
+        }
+        .saved-title {
+            flex: 1;
+            min-width: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .saved-meta {
+            font-size: 11px;
+            color: #999;
+            margin-top: 3px;
+        }
+        .saved-btn {
+            border: none;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 6px 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: transform 0.15s;
+        }
+        .saved-btn:active { transform: translateY(1px); }
+        .saved-btn.watch {
+            background: linear-gradient(135deg, #FFB7B2, #ff9f99);
+            color: #fff;
+        }
+        .saved-btn.plan { background: linear-gradient(135deg, #f8bf56, #f3a11a); color: #fff; }
+        .saved-btn.remove { background: #f3f3f3; color: #888; }
+        .saved-empty {
+            text-align: center;
+            color: #bbb;
+            font-size: 14px;
+            padding: 36px 10px;
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="page-container">
+        <div class="user-bar">
+            <div class="user-bar-name">👋 <span>{{ displayName }}</span></div>
+            <button class="user-bar-logout" @click="signOut">退出</button>
+        </div>
+        <h1 class="header-title">Saved Videos</h1>
+
+        <div class="card">
+            <div class="section-head"><span class="emoji">⭐</span><span>收藏 Favorites</span></div>
+            <div v-if="favoriteVideos.length === 0" class="saved-empty">还没有收藏视频，去 Videos 页点 ★ 收藏吧</div>
+            <div v-else>
+                <div class="saved-item" v-for="v in favoriteVideos" :key="v.id">
+                    <div style="flex:1; min-width:0;">
+                        <div class="saved-title">{{ v.title }}</div>
+                        <div class="saved-meta">{{ v.duration || '--' }} · {{ v.subCategory || '-' }}</div>
+                    </div>
+                    <button class="saved-btn watch" @click="openVideo(v)">观看</button>
+                    <button class="saved-btn plan" @click="addToPlan(v)">加计划</button>
+                    <button class="saved-btn remove" @click="toggleFavorite(v.id)">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-head"><span class="emoji">🏅</span><span>常做 Frequent (≥2次)</span></div>
+            <div v-if="frequentVideos.length === 0" class="saved-empty">完成 2 次及以上的视频会显示在这里</div>
+            <div v-else>
+                <div class="saved-item" v-for="v in frequentVideos" :key="v.id">
+                    <div style="flex:1; min-width:0;">
+                        <div class="saved-title">{{ v.title }}</div>
+                        <div class="saved-meta">🏅 {{ playCounts[v.id] || 0 }} 次 · {{ v.duration || '--' }}</div>
+                    </div>
+                    <button class="saved-btn watch" @click="openVideo(v)">观看</button>
+                    <button class="saved-btn plan" @click="addToPlan(v)">加计划</button>
+                </div>
+            </div>
+        </div>
+
+        <van-tabbar v-model="activeNav" active-color="#FFB7B2" inactive-color="#888">
+            <van-tabbar-item icon="play-circle-o" url="index.html">Videos</van-tabbar-item>
+            <van-tabbar-item icon="star-o" url="favorites.html">Saved</van-tabbar-item>
+            <van-tabbar-item icon="todo-list-o" url="plan.html">Plan</van-tabbar-item>
+            <van-tabbar-item icon="calendar-o" url="calendar.html">Calendar</van-tabbar-item>
+            <van-tabbar-item icon="user-o" url="profile.html">Me</van-tabbar-item>
+        </van-tabbar>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const activeNav = ref(1);
+                const displayName = ref('');
+                const videos = ref([]);
+                const favoriteIds = ref([]);
+                const playCounts = ref({});
+
+                const loadData = async () => {
+                    videos.value = await window.AppApi.getVideos();
+                    favoriteIds.value = await window.AppApi.getFavoriteVideoIds();
+                    playCounts.value = await window.AppApi.getVideoPlayCounts();
+                };
+
+                const favoriteVideos = computed(() => {
+                    return videos.value.filter(v => favoriteIds.value.includes(v.id));
+                });
+
+                const frequentVideos = computed(() => {
+                    const countOf = (id) => Number(playCounts.value[id] || 0);
+                    return videos.value
+                        .filter(v => countOf(v.id) >= 2)
+                        .slice()
+                        .sort((a, b) => {
+                            const diff = countOf(b.id) - countOf(a.id);
+                            if (diff !== 0) return diff;
+                            return String(a.title || '').localeCompare(String(b.title || ''));
+                        });
+                });
+
+                const toggleFavorite = async (videoId) => {
+                    favoriteIds.value = await window.AppApi.toggleFavoriteVideo(videoId);
+                };
+
+                const addToPlan = async (video) => {
+                    const today = new Date().toISOString().split('T')[0];
+                    await window.AppApi.addVideoToPlan(today, video);
+                    vant.showToast({ type: 'success', message: '已加入今日计划！' });
+                };
+
+                const openVideo = (video) => {
+                    if (video.link) window.open(video.link, '_blank');
+                };
+
+                const signOut = () => window.AuthUtils.signOut();
+
+                onMounted(async () => {
+                    const user = await window.AuthUtils.requireAuth();
+                    if (!user) return;
+                    displayName.value = window.AuthUtils.getDisplayName(user);
+                    await loadData();
+                });
+
+                return {
+                    activeNav,
+                    displayName,
+                    favoriteVideos,
+                    frequentVideos,
+                    playCounts,
+                    toggleFavorite,
+                    addToPlan,
+                    openVideo,
+                    signOut
+                };
+            }
+        }).use(vant).mount('#app');
+    </script>
+</body>
+</html>

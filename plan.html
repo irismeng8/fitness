@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daily Plan - Vitality Fitness</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@4/lib/index.css" />
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/data-service.js"></script>
+
+    <style>
+        /* ── Plan item row ── */
+        .plan-item {
+            display: flex;
+            align-items: center;
+            background: var(--bg-cream, #fff9f9);
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            border-radius: 14px;
+            gap: 10px;
+            box-shadow: 0 2px 8px rgba(255,183,178,0.08);
+        }
+        .plan-item.done {
+            opacity: 0.6;
+            background: #E8F5E9;
+        }
+        .plan-item.done .plan-item-title {
+            text-decoration: line-through;
+            color: #aaa;
+        }
+
+        /* Native checkbox */
+        .plan-check {
+            width: 22px; height: 22px;
+            accent-color: #FFB7B2;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .plan-item-title {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        /* Duration stepper */
+        .duration-stepper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .stepper-btn {
+            width: 26px; height: 26px;
+            border: 1.5px solid #FFB7B2;
+            border-radius: 50%;
+            background: #fff;
+            color: #FFB7B2;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            line-height: 1;
+        }
+        .stepper-btn:active { background: #FFB7B2; color: #fff; }
+        .stepper-val {
+            min-width: 30px;
+            text-align: center;
+            font-size: 13px;
+            color: #555;
+        }
+
+        /* Remove button */
+        .btn-remove {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 6px;
+            font-size: 17px;
+            color: #ddd;
+            flex-shrink: 0;
+        }
+        .btn-remove:active { color: #e57373; }
+
+        /* Empty state */
+        .plan-empty {
+            text-align: center;
+            padding: 48px 20px 32px;
+        }
+        .plan-empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .plan-empty-text { color: #bbb; font-size: 14px; margin-bottom: 20px; }
+        .btn-browse {
+            display: inline-block;
+            padding: 10px 28px;
+            background: #FFB7B2;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Add more button */
+        .btn-add-more {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            border: 2px dashed #FFB7B2;
+            border-radius: 999px;
+            background: #fff;
+            color: #FFB7B2;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+        .btn-add-more:active { background: #fff5f5; }
+
+        .summary-card {
+            text-align: center;
+            background: var(--warm-yellow, #FDFD96);
+            padding: 18px 16px;
+        }
+        .summary-progress {
+            margin-top: 12px;
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: #ff8f88;
+            letter-spacing: 0.2px;
+            line-height: 1.2;
+        }
+        .summary-progress-sub {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #777;
+        }
+        .summary-date-meta {
+            font-size: 12px;
+            color: #907f59;
+            letter-spacing: 0.2px;
+            margin-bottom: 8px;
+        }
+        .summary-date-main {
+            font-size: 28px;
+            font-weight: 800;
+            color: #5a5140;
+            letter-spacing: 0.3px;
+            line-height: 1.05;
+            margin-bottom: 2px;
+        }
+
+        .streak-card {
+            border-radius: 14px;
+            background: linear-gradient(135deg, #fff7ed, #fff3f8);
+            border: 1px solid #fde7dc;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+        .streak-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 9px;
+        }
+        .streak-title {
+            font-size: 13px;
+            color: #777;
+            font-weight: 700;
+        }
+        .streak-value {
+            font-size: 22px;
+            color: #f3a11a;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .streak-milestones {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+        .streak-badge {
+            text-align: center;
+            border-radius: 9px;
+            font-size: 11px;
+            padding: 5px 4px;
+            background: #fff;
+            color: #bbb;
+            border: 1px solid #f1e3d8;
+        }
+        .streak-badge.done {
+            color: #f3a11a;
+            background: #fff4dd;
+            border-color: #ffd89a;
+            font-weight: 700;
+        }
+
+        .flow-card {
+            margin-bottom: 12px;
+            background: #fff;
+            border: 1px solid #f3ecec;
+            border-radius: 14px;
+            padding: 12px;
+        }
+        .flow-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .flow-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .flow-btn {
+            flex: 1;
+            border: none;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 9px 12px;
+            cursor: pointer;
+        }
+        .flow-btn.start { background: #FFB7B2; color: #fff; }
+        .flow-btn.next { background: #f3a11a; color: #fff; }
+        .flow-hint {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .checkin-pop {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.6);
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .checkin-burst {
+            background: #fff;
+            border-radius: 18px;
+            padding: 18px 20px;
+            text-align: center;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+            animation: popIn 0.55s ease;
+        }
+        .checkin-emoji { font-size: 44px; line-height: 1; }
+        .checkin-text { margin-top: 8px; font-size: 14px; color: #666; font-weight: 700; }
+        @keyframes popIn {
+            0% { transform: scale(0.65); opacity: 0; }
+            60% { transform: scale(1.06); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="page-container">
+        <div class="user-bar">
+            <div class="user-bar-name">👋 <span>{{ displayName }}</span></div>
+            <button class="user-bar-logout" @click="signOut">退出</button>
+        </div>
+        <h1 class="header-title">Today's Plan</h1>
+
+        <!-- Summary card -->
+        <div class="card summary-card">
+            <div class="summary-date-meta">{{ todayDate.year }} · {{ todayDate.weekday }}</div>
+            <div class="summary-date-main">{{ todayDate.main }}</div>
+            <div class="summary-progress">✅ {{ completedCount }} / {{ plan.videos.length }} 已完成</div>
+            <div class="summary-progress-sub">Keep going, you're doing great ✨</div>
+        </div>
+
+        <div class="streak-card">
+            <div class="streak-top">
+                <div class="streak-title">连续打卡 Streak</div>
+                <div class="streak-value">{{ streak.current }} 天</div>
+            </div>
+            <div class="streak-milestones">
+                <div v-for="m in streak.milestones" :key="m" class="streak-badge" :class="{ done: streak.current >= m }">
+                    {{ m }}天
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-card" v-if="plan.videos.length > 0 && !loading">
+            <div class="flow-title">训练连续播放</div>
+            <div class="flow-row">
+                <button class="flow-btn start" @click="startFlow">从第1个开始</button>
+                <button class="flow-btn next" @click="openNextVideo">下一条视频</button>
+            </div>
+            <div class="flow-hint" v-if="nextVideo">下一条：{{ nextVideo.title }}</div>
+            <div class="flow-hint" v-else>今天已全部完成，做得超棒 ✨</div>
+        </div>
+
+        <!-- Empty state -->
+        <div v-if="plan.videos.length === 0 && !loading" class="card plan-empty">
+            <div class="plan-empty-icon">🏃‍♀️</div>
+            <div class="plan-empty-text">今天还没有计划哦～<br>No plan for today yet.</div>
+            <a class="btn-browse" href="index.html">Browse Videos</a>
+        </div>
+
+        <!-- Loading state -->
+        <div v-if="loading" class="card" style="text-align:center; padding: 40px; color: #ccc;">
+            加载中…
+        </div>
+
+        <!-- Plan list -->
+        <div v-if="plan.videos.length > 0">
+            <h3 class="section-title">My Routine</h3>
+
+            <div
+                v-for="(item, index) in plan.videos"
+                :key="item.id"
+                class="plan-item"
+                :class="{ done: item.completed }"
+            >
+                <!-- Checkbox -->
+                <input
+                    type="checkbox"
+                    class="plan-check"
+                    v-model="item.completed"
+                    @change="onToggleComplete(item)"
+                />
+
+                <!-- Title -->
+                <span class="plan-item-title">{{ item.title }}</span>
+
+                <!-- Duration stepper -->
+                <div class="duration-stepper">
+                    <button class="stepper-btn" @click="changeDuration(item, -1)">−</button>
+                    <span class="stepper-val">{{ item.duration }}min</span>
+                    <button class="stepper-btn" @click="changeDuration(item, 1)">+</button>
+                </div>
+
+                <!-- Remove -->
+                <button class="btn-remove" @click="removeVideo(index)">🗑️</button>
+            </div>
+
+            <button class="btn-add-more" onclick="window.location.href='index.html'">
+                + Add More Videos
+            </button>
+        </div>
+
+        <!-- Tab Bar -->
+        <van-tabbar v-model="activeNav" active-color="#FFB7B2" inactive-color="#888">
+            <van-tabbar-item icon="play-circle-o" url="index.html">Videos</van-tabbar-item>
+            <van-tabbar-item icon="star-o" url="favorites.html">Saved</van-tabbar-item>
+            <van-tabbar-item icon="todo-list-o" url="plan.html">Plan</van-tabbar-item>
+            <van-tabbar-item icon="calendar-o" url="calendar.html">Calendar</van-tabbar-item>
+            <van-tabbar-item icon="user-o" url="profile.html">Me</van-tabbar-item>
+        </van-tabbar>
+
+        <div class="checkin-pop" v-if="showCheckinAnim">
+            <div class="checkin-burst">
+                <div class="checkin-emoji">🎉</div>
+                <div class="checkin-text">完成打卡 +1</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const activeNav = ref(2);
+                const displayName = ref('');
+                const loading = ref(true);
+                const todayStr = new Date().toISOString().split('T')[0];
+                const plan = ref({ videos: [], totalCalories: 0 });
+                const streak = ref({ current: 0, milestones: [7, 14, 21, 30] });
+                const showCheckinAnim = ref(false);
+
+                const loadPlan = async () => {
+                    loading.value = true;
+                    plan.value = await window.AppApi.getPlan(todayStr);
+                    const ids = (plan.value.videos || []).map(v => v.videoId).filter(Boolean);
+                    if (ids.length) {
+                        const videoMap = await window.AppApi.getVideoMapByIds(ids);
+                        plan.value.videos = (plan.value.videos || []).map(item => {
+                            const src = videoMap[item.videoId] || null;
+                            if (!src) return item;
+                            return {
+                                ...item,
+                                title: item.title || src.title,
+                                link: item.link || src.link || '',
+                                type: item.type || src.type || 'strength'
+                            };
+                        });
+                    }
+                    streak.value = await window.AppApi.getStreakInfo();
+                    loading.value = false;
+                };
+
+                const savePlan = async () => {
+                    plan.value.totalCalories = window.AppApi.calcCalories(plan.value.videos);
+                    await window.AppApi.savePlan(todayStr, JSON.parse(JSON.stringify(plan.value)));
+                    streak.value = await window.AppApi.getStreakInfo();
+                };
+
+                const recalc = async () => {
+                    plan.value.totalCalories = window.AppApi.calcCalories(plan.value.videos);
+                    await savePlan();
+                };
+
+                const changeDuration = async (item, delta) => {
+                    const next = (item.duration || 0) + delta;
+                    if (next < 1 || next > 120) return;
+                    item.duration = next;
+                    await recalc();
+                };
+
+                const removeVideo = async (index) => {
+                    plan.value.videos.splice(index, 1);
+                    await recalc();
+                };
+
+                const completedCount = computed(() => plan.value.videos.filter(v => v.completed).length);
+                const nextVideo = computed(() => plan.value.videos.find(v => !v.completed) || null);
+                const todayDate = computed(() => {
+                    const d = new Date();
+                    const weekday = d.toLocaleDateString('zh-CN', { weekday: 'long' });
+                    return {
+                        main: `${d.getMonth() + 1}月${d.getDate()}日`,
+                        weekday,
+                        year: `${d.getFullYear()}年`
+                    };
+                });
+
+                const startFlow = () => {
+                    if (!plan.value.videos.length) return;
+                    const first = plan.value.videos[0];
+                    if (first.link) window.open(first.link, '_blank');
+                    else vant.showToast({ message: '该计划项没有视频链接', type: 'fail' });
+                };
+
+                const openNextVideo = async () => {
+                    const item = nextVideo.value;
+                    if (!item) {
+                        vant.showToast({ type: 'success', message: '今天全部完成啦！' });
+                        return;
+                    }
+                    if (item.link) window.open(item.link, '_blank');
+                    item.completed = true;
+                    await savePlan();
+                    showCheckinAnim.value = true;
+                    setTimeout(() => { showCheckinAnim.value = false; }, 850);
+                };
+
+                const onToggleComplete = async (item) => {
+                    const turnedOn = !!item.completed;
+                    await savePlan();
+                    if (turnedOn) {
+                        showCheckinAnim.value = true;
+                        setTimeout(() => { showCheckinAnim.value = false; }, 850);
+                    }
+                };
+
+                const signOut = () => window.AuthUtils.signOut();
+
+                onMounted(async () => {
+                    const user = await window.AuthUtils.requireAuth();
+                    if (!user) return;
+                    displayName.value = window.AuthUtils.getDisplayName(user);
+                    await loadPlan();
+                });
+
+                return {
+                    activeNav,
+                    displayName,
+                    loading,
+                    todayDate,
+                    plan,
+                    streak,
+                    showCheckinAnim,
+                    completedCount,
+                    nextVideo,
+                    savePlan, recalc, changeDuration, removeVideo, signOut,
+                    startFlow, openNextVideo, onToggleComplete
+                };
+            }
+        }).use(vant).mount('#app');
+    </script>
+</body>
+</html>

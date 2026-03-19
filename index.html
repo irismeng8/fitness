@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Videos - Vitality Fitness</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@4/lib/index.css" />
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/data-service.js"></script>
+
+    <style>
+        /* ── Top tab switcher (Upload / Collection) ── */
+        .tab-switcher {
+            display: flex;
+            background: #f5f0f0;
+            border-radius: 999px;
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 9px 0;
+            border: none;
+            background: transparent;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: #fff;
+            color: #FFB7B2;
+            box-shadow: 0 2px 8px rgba(255,183,178,0.25);
+        }
+
+        /* ── Upload form ── */
+        .upload-form-row { display: flex; flex-direction: column; gap: 12px; }
+        .form-label { font-size: 14px; color: #666; margin-bottom: 4px; }
+        .form-input {
+            width: 100%; padding: 10px 14px;
+            border: 1.5px solid #e0e0e0; border-radius: 10px;
+            font-size: 15px; outline: none; box-sizing: border-box; background: #fafafa;
+        }
+        .form-input:focus { border-color: #FFB7B2; background: #fff; }
+        .part-select {
+            appearance: none; -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer;
+        }
+        .tag-editor {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .tag-editor .form-input { flex: 1; }
+        .btn-tag-add {
+            border: none;
+            border-radius: 10px;
+            background: #f3f3f3;
+            color: #666;
+            height: 40px;
+            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .tag-quick-list,
+        .tag-picked-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 7px;
+        }
+        .tag-quick-item,
+        .tag-picked-item {
+            border: none;
+            border-radius: 999px;
+            font-size: 11px;
+            line-height: 1;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        .tag-quick-item {
+            background: #f6f6f6;
+            color: #8d8d8d;
+        }
+        .tag-picked-item {
+            background: #f0f4ff;
+            color: #6e8efb;
+            font-weight: 700;
+        }
+        .tag-hint {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #b9b9b9;
+        }
+        .submit-btn {
+            width: 100%; padding: 13px; background: #FFB7B2; color: #fff;
+            border: none; border-radius: 999px; font-size: 16px; font-weight: 700;
+            cursor: pointer; box-shadow: 0 4px 0 rgba(255,183,178,0.5); margin-top: 8px;
+        }
+        .submit-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(255,183,178,0.5); }
+
+        .filter-toolbar {
+            margin-bottom: 8px;
+        }
+        .search-input {
+            width: 100%;
+            height: 36px;
+            padding: 0 12px;
+            font-size: 13px;
+            border: 1.5px solid #f1dedd;
+            border-radius: 999px;
+            background: #fffcfc;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .search-input::placeholder { color: #c3baba; }
+
+        /* ── Category filter pills ── */
+        .category-pills {
+            display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto;
+            padding-bottom: 2px; scrollbar-width: none;
+        }
+        .category-pills::-webkit-scrollbar { display: none; }
+        .cat-pill {
+            flex-shrink: 0; padding: 6px 16px; border-radius: 999px;
+            font-size: 13px; font-weight: 600; border: none; cursor: pointer;
+            transition: all 0.18s;
+        }
+        .cat-pill.all      { background: #f0f0f0; color: #888; }
+        .cat-pill.all.active  { background: #333; color: #fff; }
+        .cat-pill.fatburn  { background: #fff3e0; color: #f3a11a; }
+        .cat-pill.fatburn.active { background: #f3a11a; color: #fff; }
+        .cat-pill.shape    { background: #fce4e3; color: #FFB7B2; }
+        .cat-pill.shape.active { background: #FFB7B2; color: #fff; }
+        .cat-pill.correct  { background: #e8f5e9; color: #5aab6f; }
+        .cat-pill.correct.active { background: #5aab6f; color: #fff; }
+
+        .duration-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .duration-label {
+            flex-shrink: 0;
+            font-size: 12px;
+            color: #8d95b3;
+            font-weight: 700;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: #eef4ff;
+            border: none;
+            cursor: pointer;
+        }
+        .duration-label.active {
+            color: #fff;
+            background: #6e8efb;
+        }
+        .duration-pills {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 2px;
+        }
+        .duration-pills::-webkit-scrollbar { display: none; }
+        .duration-pill {
+            border: none;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            color: #7f8ab0;
+            background: #f4f7ff;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        .duration-pill.active {
+            color: #fff;
+            background: #6e8efb;
+        }
+
+        /* ── Sub-category heading ── */
+        .sub-cat-heading {
+            font-size: 13px; font-weight: 700; color: #fff;
+            border-radius: 8px; padding: 4px 12px;
+            margin: 20px 0 10px; display: inline-block;
+        }
+        .sub-cat-heading.fatburn  { background: linear-gradient(90deg,#f3a11a,#f8c460); }
+        .sub-cat-heading.shape    { background: linear-gradient(90deg,#FFB7B2,#f9cdca); }
+        .sub-cat-heading.correct  { background: linear-gradient(90deg,#6dbf7e,#a8ddb5); }
+
+        /* ── Video card ── */
+        .video-card {
+            border-radius: 14px; background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 10px; overflow: hidden;
+        }
+        .video-card-body {
+            padding: 12px 14px 10px;
+        }
+        .video-title {
+            font-size: 14px; font-weight: 600; color: #333;
+            line-height: 1.45; margin-bottom: 8px;
+            display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .video-meta-row {
+            display: flex; align-items: center; gap: 6px;
+            flex-wrap: wrap; margin-bottom: 8px;
+        }
+        .meta-chip {
+            font-size: 11px; padding: 2px 8px; border-radius: 99px;
+            font-weight: 600;
+        }
+        .meta-chip.duration { background: #f0f4ff; color: #6e8efb; }
+        .meta-chip.plays    { background: #fff8e1; color: #f3a11a; }
+        .meta-chip.cardio   { background: #fff3e0; color: #f3a11a; }
+        .meta-chip.strength { background: #fce4e3; color: #FFB7B2; }
+        .meta-chip.correct  { background: #e8f5e9; color: #5aab6f; }
+
+        .feature-tags {
+            display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;
+        }
+        .feature-tag {
+            font-size: 11px; padding: 2px 7px; border-radius: 6px;
+            background: #f5f5f5; color: #999;
+        }
+
+        .video-card-footer {
+            display: flex; align-items: center;
+            border-top: 1px solid #f5f5f5; padding: 8px 14px;
+            gap: 8px;
+        }
+        .btn-watch {
+            flex: 1; padding: 7px 0; background: #FFB7B2; color: #fff;
+            border: none; border-radius: 999px; font-size: 13px; font-weight: 700;
+            cursor: pointer; text-align: center; text-decoration: none; display: block;
+        }
+        .btn-watch.cardio-btn { background: #f3a11a; }
+        .btn-watch.correct-btn { background: #5aab6f; }
+        .btn-plan {
+            padding: 7px 12px; background: #f5f5f5; border: none;
+            border-radius: 999px; font-size: 12px; color: #888; cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-plan:active { background: #e8e8e8; }
+        .btn-fav {
+            padding: 7px 10px;
+            border: none;
+            border-radius: 999px;
+            font-size: 13px;
+            color: #999;
+            background: #f6f6f6;
+            cursor: pointer;
+        }
+        .btn-fav.active {
+            background: #fff1d9;
+            color: #f3a11a;
+        }
+        .btn-delete {
+            background: none; border: none; cursor: pointer;
+            padding: 4px 6px; font-size: 16px; color: #ddd;
+        }
+
+        .empty-hint { text-align: center; padding: 40px 0; color: #ccc; font-size: 14px; }
+
+        /* ── Sub-category pills row ── */
+        .sub-pills {
+            display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto;
+            padding-bottom: 2px; scrollbar-width: none;
+        }
+        .sub-pills::-webkit-scrollbar { display: none; }
+        .sub-pill {
+            flex-shrink: 0; padding: 4px 12px; border-radius: 999px;
+            font-size: 12px; font-weight: 600; border: none; cursor: pointer;
+            transition: all 0.18s; background: #f5f5f5; color: #999;
+        }
+        .sub-pill.fatburn  { background: #fff3e0; color: #f3a11a; }
+        .sub-pill.shape    { background: #fce4e3; color: #FFB7B2; }
+        .sub-pill.correct  { background: #e8f5e9; color: #5aab6f; }
+        .sub-pill.active.fatburn  { background: #f3a11a; color: #fff; }
+        .sub-pill.active.shape    { background: #FFB7B2; color: #fff; }
+        .sub-pill.active.correct  { background: #5aab6f; color: #fff; }
+
+        /* ── Play count badge ── */
+        .play-count-badge {
+            display: inline-block; font-size: 10px; padding: 1px 6px;
+            border-radius: 99px; background: #f0f4ff; color: #6e8efb;
+            font-weight: 700; vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="page-container">
+        <div class="user-bar">
+            <div class="user-bar-name">👋 <span>{{ displayName }}</span></div>
+            <button class="user-bar-logout" @click="signOut">退出</button>
+        </div>
+        <h1 class="header-title">Vitality Studio</h1>
+
+        <!-- Top Tab Switcher -->
+        <div class="tab-switcher">
+            <button class="tab-btn" :class="{ active: activeTab === 'collection' }" @click="activeTab = 'collection'">
+                视频库 Library
+            </button>
+            <button class="tab-btn" :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">
+                添加视频 Add
+            </button>
+        </div>
+
+        <!-- ════ Collection Tab ════ -->
+        <div v-show="activeTab === 'collection'">
+
+            <div class="filter-toolbar">
+                <input class="search-input" v-model.trim="searchText" placeholder="搜索标题/标签，例如 无跑跳、腹肌、帕梅拉" />
+            </div>
+
+            <!-- Category filter pills -->
+            <div class="category-pills">
+                <button class="cat-pill all" :class="{ active: filterCat === 'all' }" @click="setFilterCat('all')">全部</button>
+                <button class="cat-pill fatburn" :class="{ active: filterCat === '燃脂' }" @click="setFilterCat('燃脂')">🔥 燃脂</button>
+                <button class="cat-pill shape" :class="{ active: filterCat === '塑形' }" @click="setFilterCat('塑形')">✨ 塑形</button>
+                <button class="cat-pill correct" :class="{ active: filterCat === '矫正' }" @click="setFilterCat('矫正')">🩺 矫正</button>
+            </div>
+
+            <div class="duration-row">
+                <button class="duration-label" :class="{ active: durationFilter === 'all' }" @click="durationFilter = 'all'">时长</button>
+                <div class="duration-pills">
+                    <button class="duration-pill" :class="{ active: durationFilter === 'short' }" @click="durationFilter = 'short'">≤15分钟</button>
+                    <button class="duration-pill" :class="{ active: durationFilter === 'mid' }" @click="durationFilter = 'mid'">16-30分钟</button>
+                    <button class="duration-pill" :class="{ active: durationFilter === 'long' }" @click="durationFilter = 'long'">>30分钟</button>
+                </div>
+            </div>
+
+            <!-- Sub-category filter pills (acts as precise filter, not scroll) -->
+            <div class="sub-pills" v-if="visibleSubPills.length > 1">
+                <button
+                    v-for="s in visibleSubPills" :key="s.subCategory"
+                    class="sub-pill" :class="[s.themeClass, { active: filterSub === s.subCategory }]"
+                    @click="toggleSubFilter(s.subCategory)">
+                    {{ s.icon }} {{ s.subCategory }}
+                </button>
+            </div>
+
+            <div v-if="videos.length === 0" class="empty-hint">还没有视频~</div>
+
+            <template v-else>
+                <template v-for="group in filteredGroups" :key="group.subCategory">
+                    <template v-if="group.videos.length > 0">
+                        <div class="sub-cat-heading" :class="group.themeClass">
+                                {{ group.icon }} {{ group.subCategory }}
+                            </div>
+                        <div v-for="video in group.videos" :key="video.id" class="video-card">
+                            <div class="video-card-body">
+                                <div class="video-title">{{ video.title }}</div>
+                                <div class="video-meta-row">
+                                    <span class="meta-chip duration" v-if="video.duration">{{ video.duration }}</span>
+                                    <span class="meta-chip" :class="video.type === 'cardio' ? 'cardio' : (video.category === '矫正' ? 'correct' : 'strength')">
+                                        {{ video.type === 'cardio' ? '燃脂' : (video.category === '矫正' ? '矫正' : '塑形') }}
+                                    </span>
+                                    <span class="meta-chip plays" v-if="video.plays">▶ {{ video.plays }}</span>
+                                    <span class="play-count-badge" v-if="playCounts[video.id]">🏅 {{ playCounts[video.id] }}次</span>
+                                </div>
+                                <div class="feature-tags" v-if="video.features && video.features.length">
+                                    <span class="feature-tag" v-for="f in video.features" :key="f">{{ f }}</span>
+                                </div>
+                            </div>
+                            <div class="video-card-footer">
+                                <a :href="video.link" target="_blank"
+                                   class="btn-watch"
+                                   :class="video.type === 'cardio' ? 'cardio-btn' : (video.category === '矫正' ? 'correct-btn' : '')">
+                                    ▶ 去B站看
+                                </a>
+                                <button class="btn-fav" :class="{ active: isFavorite(video.id) }" @click="toggleFavorite(video.id)">★</button>
+                                <button class="btn-plan" @click="addToPlan(video)">+ 加入计划</button>
+                                <button class="btn-delete" v-if="!video.preset" @click="deleteVideo(video.id)">🗑️</button>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+            </template>
+        </div>
+
+        <!-- ════ Upload Tab ════ -->
+        <div class="card" v-show="activeTab === 'upload'">
+            <h3 class="section-title">添加自定义视频</h3>
+            <div class="upload-form-row">
+                <div>
+                    <div class="form-label">Title 标题</div>
+                    <input class="form-input" v-model="newVideo.title" placeholder="例如：10分钟腹肌训练" />
+                </div>
+                <div>
+                    <div class="form-label">Link 链接</div>
+                    <input class="form-input" v-model="newVideo.link" placeholder="支持B站、抖音等任意视频链接" />
+                </div>
+                <div>
+                    <div class="form-label">大类 Category</div>
+                    <select class="form-input part-select" v-model="newVideo.category" @change="newVideo.subCategory = ''">
+                        <option value="">请选择</option>
+                        <option value="燃脂">🔥 燃脂</option>
+                        <option value="塑形">✨ 塑形</option>
+                        <option value="矫正">🩺 矫正</option>
+                    </select>
+                </div>
+                <div v-if="newVideo.category">
+                    <div class="form-label">子类 Sub-category</div>
+                    <select class="form-input part-select" v-model="newVideo.subCategory">
+                        <option value="">请选择</option>
+                        <template v-if="newVideo.category === '燃脂'">
+                            <option value="低强度燃脂">🦵 低强度燃脂（无跑跳）</option>
+                            <option value="全身燃脂">🔥 全身燃脂（有氧跳操）</option>
+                            <option value="HIIT强化">⚡ HIIT强化（高强度间歇）</option>
+                        </template>
+                        <template v-if="newVideo.category === '塑形'">
+                            <option value="腰腹核心">腰腹核心</option>
+                            <option value="肩背手臂">肩背手臂</option>
+                            <option value="臀腿塑形">臀腿塑形</option>
+                            <option value="全身塑形">全身塑形</option>
+                        </template>
+                        <template v-if="newVideo.category === '矫正'">
+                            <option value="腿型矫正">腿型矫正</option>
+                            <option value="体态矫正">体态矫正</option>
+                            <option value="拉伸放松">拉伸放松</option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <div class="form-label">时长 Duration</div>
+                    <input class="form-input" v-model="newVideo.duration" placeholder="例如：15min" />
+                </div>
+
+                <div>
+                    <div class="form-label">标签 Tags（可选）</div>
+                    <div class="tag-editor">
+                        <input
+                            class="form-input"
+                            v-model.trim="newTagText"
+                            @keydown.enter.prevent="addTagFromInput"
+                            placeholder="例如：无跑跳 / 膝友好 / 新手"
+                        />
+                        <button class="btn-tag-add" @click="addTagFromInput">添加</button>
+                    </div>
+                    <div class="tag-quick-list" v-if="quickTagOptions.length">
+                        <button
+                            class="tag-quick-item"
+                            v-for="tag in quickTagOptions"
+                            :key="'q-'+tag"
+                            @click="addTag(tag)">
+                            + {{ tag }}
+                        </button>
+                    </div>
+                    <div class="tag-picked-list" v-if="newVideo.features.length">
+                        <button
+                            class="tag-picked-item"
+                            v-for="tag in newVideo.features"
+                            :key="'p-'+tag"
+                            @click="removeTag(tag)">
+                            {{ tag }} ×
+                        </button>
+                    </div>
+                    <div class="tag-hint">点击已添加标签可删除，最多 8 个标签</div>
+                </div>
+
+                <button class="submit-btn" @click="onSubmit">添加到库 Add to Library</button>
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <van-tabbar v-model="activeNav" active-color="#FFB7B2" inactive-color="#888">
+            <van-tabbar-item icon="play-circle-o" url="index.html">Videos</van-tabbar-item>
+            <van-tabbar-item icon="star-o" url="favorites.html">Saved</van-tabbar-item>
+            <van-tabbar-item icon="todo-list-o" url="plan.html">Plan</van-tabbar-item>
+            <van-tabbar-item icon="calendar-o" url="calendar.html">Calendar</van-tabbar-item>
+            <van-tabbar-item icon="user-o" url="profile.html">Me</van-tabbar-item>
+        </van-tabbar>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        // Sub-categories definition with order + theme class + icon
+        const SUB_CATEGORIES = [
+            { subCategory: '低强度燃脂', category: '燃脂', themeClass: 'fatburn', icon: '🦵' },
+            { subCategory: '全身燃脂',   category: '燃脂', themeClass: 'fatburn', icon: '🔥' },
+            { subCategory: 'HIIT强化',   category: '燃脂', themeClass: 'fatburn', icon: '⚡' },
+            { subCategory: '腰腹核心',   category: '塑形', themeClass: 'shape',   icon: '💪' },
+            { subCategory: '肩背手臂',   category: '塑形', themeClass: 'shape',   icon: '🦾' },
+            { subCategory: '臀腿塑形',   category: '塑形', themeClass: 'shape',   icon: '🍑' },
+            { subCategory: '全身塑形',   category: '塑形', themeClass: 'shape',   icon: '✨' },
+            { subCategory: '腿型矫正',   category: '矫正', themeClass: 'correct', icon: '🦵' },
+            { subCategory: '体态矫正',   category: '矫正', themeClass: 'correct', icon: '🧍' },
+            { subCategory: '拉伸放松',   category: '矫正', themeClass: 'correct', icon: '🧘' },
+        ];
+
+        createApp({
+            setup() {
+                const activeNav = ref(0);
+                const activeTab = ref('collection');
+                const filterCat = ref('all');
+                const filterSub = ref('');
+                const videos = ref([]);
+                const displayName = ref('');
+                const playCounts = ref({});
+                const favoriteIds = ref([]);
+                const searchText = ref('');
+                const durationFilter = ref('all');
+                const newTagText = ref('');
+                const newVideo = ref({
+                    title: '', link: '', category: '', subCategory: '',
+                    duration: '', features: []
+                });
+
+                const quickTagOptions = computed(() => {
+                    if (newVideo.value.category === '燃脂') {
+                        return ['无跑跳', '膝友好', '新手友好', '低冲击', '暴汗'];
+                    }
+                    if (newVideo.value.category === '塑形') {
+                        return ['居家无器械', '核心训练', '臀腿', '上肢', '新手友好'];
+                    }
+                    if (newVideo.value.category === '矫正') {
+                        return ['拉伸', '放松', '体态改善', '肩颈友好', '睡前'];
+                    }
+                    return ['新手友好', '居家无器械', '低冲击'];
+                });
+
+                const normalizeTag = (tag) => String(tag || '').trim().replace(/\s+/g, ' ');
+
+                const addTag = (rawTag) => {
+                    const tag = normalizeTag(rawTag);
+                    if (!tag) return;
+                    if (newVideo.value.features.includes(tag)) return;
+                    if (newVideo.value.features.length >= 8) {
+                        vant.showToast({ message: '最多添加 8 个标签', type: 'fail' });
+                        return;
+                    }
+                    newVideo.value.features.push(tag);
+                };
+
+                const addTagFromInput = () => {
+                    addTag(newTagText.value);
+                    newTagText.value = '';
+                };
+
+                const removeTag = (tag) => {
+                    newVideo.value.features = newVideo.value.features.filter(t => t !== tag);
+                };
+
+                const loadVideos = async () => {
+                    videos.value = await window.AppApi.getVideos();
+                };
+
+                const parseDurationMin = (duration) => {
+                    if (!duration) return null;
+                    const m = String(duration).match(/\d+/);
+                    return m ? Number(m[0]) : null;
+                };
+
+                const matchesQuickFilters = (video) => {
+                    const mins = parseDurationMin(video.duration);
+                    if (durationFilter.value === 'short' && !(mins !== null && mins <= 15)) return false;
+                    if (durationFilter.value === 'mid' && !(mins !== null && mins >= 16 && mins <= 30)) return false;
+                    if (durationFilter.value === 'long' && !(mins !== null && mins > 30)) return false;
+                    return true;
+                };
+
+                const matchesSearch = (video) => {
+                    const q = searchText.value.trim().toLowerCase();
+                    if (!q) return true;
+                    const text = [video.title || '', ...(video.features || [])].join(' ').toLowerCase();
+                    return text.includes(q);
+                };
+
+                const isFavorite = (videoId) => favoriteIds.value.includes(videoId);
+
+                // Sub-category pills visible for current filterCat
+                const visibleSubPills = computed(() => {
+                    return SUB_CATEGORIES.filter(s =>
+                        filterCat.value === 'all' || s.category === filterCat.value
+                    );
+                });
+
+                // Build grouped list, filtered by selected category + sub, sorted by play count desc
+                const filteredGroups = computed(() => {
+                    return SUB_CATEGORIES
+                        .filter(s => filterCat.value === 'all' || s.category === filterCat.value)
+                        .filter(s => filterSub.value === '' || s.subCategory === filterSub.value)
+                        .map(s => ({
+                            ...s,
+                            videos: videos.value
+                                .filter(v => {
+                                    const sub = v.subCategory || v.part || '';
+                                    return sub === s.subCategory && matchesSearch(v) && matchesQuickFilters(v);
+                                })
+                                .slice()
+                                .sort((a, b) => (playCounts.value[b.id] || 0) - (playCounts.value[a.id] || 0))
+                        }));
+                });
+
+                // Toggle sub-category filter; clicking again clears it
+                const toggleSubFilter = (subCat) => {
+                    filterSub.value = filterSub.value === subCat ? '' : subCat;
+                };
+
+                // Switch main category and clear sub filter
+                const setFilterCat = (cat) => {
+                    filterCat.value = cat;
+                    filterSub.value = '';
+                };
+
+                const toggleFavorite = async (videoId) => {
+                    favoriteIds.value = await window.AppApi.toggleFavoriteVideo(videoId);
+                };
+
+                const onSubmit = async () => {
+                    if (!newVideo.value.title.trim()) {
+                        vant.showToast({ message: '请输入标题', type: 'fail' }); return;
+                    }
+                    if (!newVideo.value.link.trim()) {
+                        vant.showToast({ message: '请输入链接', type: 'fail' }); return;
+                    }
+                    if (!newVideo.value.category) {
+                        vant.showToast({ message: '请选择大类', type: 'fail' }); return;
+                    }
+                    if (!newVideo.value.subCategory) {
+                        vant.showToast({ message: '请选择子类', type: 'fail' }); return;
+                    }
+                    const autoType = newVideo.value.category === '燃脂' ? 'cardio' : 'strength';
+                    // part for backward-compat
+                    const v = { ...newVideo.value, type: autoType, part: newVideo.value.subCategory };
+                    await window.AppApi.addVideo(v);
+                    newVideo.value = { title: '', link: '', category: '', subCategory: '', duration: '', features: [] };
+                    newTagText.value = '';
+                    await loadVideos();
+                    vant.showToast({ type: 'success', message: '已添加！' });
+                    activeTab.value = 'collection';
+                };
+
+                const deleteVideo = async (id) => {
+                    if (confirm('确定删除这条视频吗？')) {
+                        await window.AppApi.deleteVideo(id);
+                        await loadVideos();
+                    }
+                };
+
+                const addToPlan = async (video) => {
+                    const today = new Date().toISOString().split('T')[0];
+                    await window.AppApi.addVideoToPlan(today, video);
+                    vant.showToast({ type: 'success', message: '已加入今日计划！' });
+                    setTimeout(() => { window.location.href = 'plan.html'; }, 800);
+                };
+
+                const signOut = () => window.AuthUtils.signOut();
+
+                onMounted(async () => {
+                    const user = await window.AuthUtils.requireAuth();
+                    if (!user) return;
+                    displayName.value = window.AuthUtils.getDisplayName(user);
+                    await loadVideos();
+                    playCounts.value = await window.AppApi.getVideoPlayCounts();
+                    favoriteIds.value = await window.AppApi.getFavoriteVideoIds();
+                });
+
+                return {
+                    activeNav, activeTab, filterCat, filterSub, videos, newVideo, displayName,
+                    playCounts, favoriteIds, searchText, durationFilter, newTagText,
+                    visibleSubPills,
+                    quickTagOptions,
+                    filteredGroups,
+                    onSubmit, deleteVideo, addToPlan, signOut, toggleSubFilter, setFilterCat,
+                    toggleFavorite, isFavorite, addTagFromInput, addTag, removeTag
+                };
+            }
+        }).use(vant).mount('#app');
+    </script>
+</body>
+</html>

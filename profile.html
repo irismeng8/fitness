@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Profile - Vitality Fitness</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@4/lib/index.css" />
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/data-service.js"></script>
+
+    <style>
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .metric-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 14px 14px 12px;
+            box-shadow: 0 4px 12px rgba(255, 183, 178, 0.12);
+            position: relative;
+        }
+
+        .metric-name {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .metric-value-row {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .metric-number {
+            color: var(--primary-pink);
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .metric-unit {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        /* Inline editable input */
+        .metric-input {
+            width: 100%;
+            border: 1.5px solid #FFB7B2;
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary-pink);
+            background: #fff8f8;
+            box-sizing: border-box;
+            outline: none;
+            margin-bottom: 2px;
+        }
+
+        .chart-hint {
+            font-size: 11px;
+            color: #ccc;
+            cursor: pointer;
+            text-align: right;
+        }
+
+        .chart-hint:active {
+            color: #AEC6CF;
+        }
+
+        /* Save button */
+        .save-btn {
+            width: 100%;
+            padding: 13px;
+            background: #FFB7B2;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(255,183,178,0.45);
+            margin-top: 4px;
+        }
+        .save-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 rgba(255,183,178,0.45);
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .analysis-item {
+            background: #fff8f8;
+            border: 1px solid #fde8e6;
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+        .analysis-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .analysis-value {
+            font-size: 22px;
+            color: var(--primary-pink);
+            font-weight: 700;
+            line-height: 1;
+        }
+        .analysis-sub {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        /* History */
+        .history-entry {
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .history-entry:last-child {
+            border-bottom: none;
+        }
+        .history-entry-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .history-entry-date {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #444;
+        }
+        .history-entry-weight {
+            font-size: 13px;
+            color: #FFB7B2;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .history-entry-arrow {
+            font-size: 18px;
+            color: #ccc;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+        .history-entry-arrow.open {
+            transform: rotate(90deg);
+        }
+        .btn-delete-entry {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            color: #ddd;
+            padding: 2px 4px;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .btn-delete-entry:active { color: #e57373; }
+        .history-entry-body {
+            padding: 0 4px 12px;
+        }
+        .history-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="page-container">
+        <div class="user-bar">
+            <div class="user-bar-name">👋 <span>{{ displayName }}</span></div>
+            <button class="user-bar-logout" @click="signOut">退出</button>
+        </div>
+        <h1 class="header-title">My Body Data</h1>
+
+        <!-- Current Metrics (editable) -->
+        <div class="card">
+            <h3 class="section-title">Current Metrics</h3>
+            <div class="metric-grid">
+                <div v-for="metric in metrics" :key="metric.key" class="metric-card">
+                    <div class="metric-name">{{ metric.label }}</div>
+                    <input
+                        class="metric-input"
+                        type="number"
+                        v-model="form[metric.key]"
+                        :placeholder="current[metric.key] || '--'"
+                    />
+                    <div class="metric-unit" style="font-size:11px; color:#ccc;">{{ metric.unit }}</div>
+                    <div class="chart-hint" @click="openChart(metric)">历史曲线 ›</div>
+                </div>
+            </div>
+            <button class="save-btn" @click="onSave">保存数据 Save</button>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">Body Analysis</h3>
+            <div class="analysis-grid">
+                <div class="analysis-item">
+                    <div class="analysis-label">BMI</div>
+                    <div class="analysis-value">{{ bodyAnalysis.bmi }}</div>
+                    <div class="analysis-sub">{{ bodyAnalysis.bmiLabel }}</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-label">腰臀比 WHR</div>
+                    <div class="analysis-value">{{ bodyAnalysis.whr }}</div>
+                    <div class="analysis-sub">{{ bodyAnalysis.whrLabel }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History -->
+        <div class="card">
+            <h3 class="section-title">历史记录 History</h3>
+            <div v-if="history.length === 0" style="text-align:center; padding: 32px 0; color:#ccc; font-size:14px;">
+                暂无记录 No records yet
+            </div>
+            <div v-else>
+                <div v-for="entry in history" :key="entry.id" class="history-entry">
+                    <div class="history-entry-header" @click="toggleEntry(entry.id)">
+                        <span class="history-entry-date">{{ entry.date }}</span>
+                        <span class="history-entry-weight">{{ entry.weight || '-' }} kg</span>
+                        <span class="history-entry-arrow" :class="{ open: openEntries.includes(entry.id) }">›</span>
+                        <button class="btn-delete-entry" @click.stop="deleteEntry(entry.id)">🗑️</button>
+                    </div>
+                    <div class="history-entry-body" v-show="openEntries.includes(entry.id)">
+                        <div class="history-row">
+                            <div>身高 Height: {{ entry.height || '-' }} cm</div>
+                            <div>体重 Weight: {{ entry.weight || '-' }} kg</div>
+                            <div>肩围 Shoulder: {{ entry.shoulder || '-' }} cm</div>
+                            <div>胸围 Chest: {{ entry.chest || '-' }} cm</div>
+                            <div>腰围 Waist: {{ entry.waist || '-' }} cm</div>
+                            <div>臀围 Hips: {{ entry.hips || '-' }} cm</div>
+                            <div>腿围 Thigh: {{ entry.thigh || '-' }} cm</div>
+                            <div>小腿 Calf: {{ entry.calf || '-' }} cm</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Popup -->
+        <van-popup v-model:show="showChart" position="bottom" round :style="{ height: '72%' }" @opened="renderChart">
+            <div style="padding: 20px 20px 32px;">
+                <h2 style="margin: 0 0 16px; text-align: center; font-size: 17px; color: #333;">
+                    {{ activeMetric.label }} 趋势
+                </h2>
+                <div id="metricChart" style="width: 100%; height: 260px;"></div>
+                <van-divider>历史数据</van-divider>
+                <van-cell
+                    v-for="entry in activeMetricHistory"
+                    :key="entry.id"
+                    :title="entry.date"
+                    :value="`${entry.value} ${activeMetric.unit}`"
+                />
+            </div>
+        </van-popup>
+
+        <van-tabbar v-model="activeNav" active-color="#FFB7B2" inactive-color="#888">
+            <van-tabbar-item icon="play-circle-o" url="index.html">Videos</van-tabbar-item>
+            <van-tabbar-item icon="star-o" url="favorites.html">Saved</van-tabbar-item>
+            <van-tabbar-item icon="todo-list-o" url="plan.html">Plan</van-tabbar-item>
+            <van-tabbar-item icon="calendar-o" url="calendar.html">Calendar</van-tabbar-item>
+            <van-tabbar-item icon="user-o" url="profile.html">Me</van-tabbar-item>
+        </van-tabbar>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const activeNav = ref(4);
+                const displayName = ref('');
+                const openEntries = ref([]);
+                const showChart = ref(false);
+                const history = ref([]);
+                const current = ref({});
+                const form = ref({});
+                const activeMetric = ref({ key: 'waist', label: '腰围 Waist', unit: 'cm' });
+                let chart = null;
+
+                const metrics = [
+                    { key: 'height', label: '身高 Height', unit: 'cm' },
+                    { key: 'weight', label: '体重 Weight', unit: 'kg' },
+                    { key: 'shoulder', label: '肩围 Shoulder', unit: 'cm' },
+                    { key: 'chest', label: '胸围 Chest', unit: 'cm' },
+                    { key: 'waist', label: '腰围 Waist', unit: 'cm' },
+                    { key: 'hips', label: '臀围 Hips', unit: 'cm' },
+                    { key: 'thigh', label: '腿围 Thigh', unit: 'cm' },
+                    { key: 'calf', label: '小腿 Calf', unit: 'cm' }
+                ];
+
+                const loadData = async () => {
+                    history.value = await window.AppApi.getProfileHistory();
+                    current.value = await window.AppApi.getLatestProfile() || {};
+                    // Pre-fill form with latest values
+                    const c = current.value;
+                    form.value = {
+                        height:   c.height   || '',
+                        weight:   c.weight   || '',
+                        shoulder: c.shoulder || '',
+                        chest:    c.chest    || '',
+                        waist:    c.waist    || '',
+                        hips:     c.hips     || '',
+                        thigh:    c.thigh    || '',
+                        calf:     c.calf     || ''
+                    };
+                };
+
+                const onSave = async () => {
+                    // Check at least one field is filled
+                    const hasValue = Object.values(form.value).some(v => v !== '');
+                    if (!hasValue) {
+                        vant.showToast({ message: '请至少填写一项数据', type: 'fail' });
+                        return;
+                    }
+                    await window.AppApi.saveProfileEntry({ ...form.value });
+                    vant.showToast({ type: 'success', message: '已保存！' });
+                    await loadData();
+                };
+
+                const openChart = (metric) => {
+                    activeMetric.value = metric;
+                    showChart.value = true;
+                };
+
+                const toggleEntry = (id) => {
+                    const idx = openEntries.value.indexOf(id);
+                    if (idx === -1) openEntries.value.push(id);
+                    else openEntries.value.splice(idx, 1);
+                };
+
+                const deleteEntry = async (id) => {
+                    if (!confirm('确定删除这条记录吗？')) return;
+                    await window.AppApi.deleteProfileEntry(id);
+                    await loadData();
+                };
+
+                const activeMetricHistory = computed(() => {
+                    return history.value
+                        .filter(item => item[activeMetric.value.key] !== undefined && item[activeMetric.value.key] !== '')
+                        .map(item => ({ id: item.id, date: item.date, value: Number(item[activeMetric.value.key]) }))
+                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+                });
+
+                const num = (v) => {
+                    if (v === '' || v === null || v === undefined) return null;
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n : null;
+                };
+
+                const fromFormOrCurrent = (key) => {
+                    const f = num(form.value[key]);
+                    if (f !== null) return f;
+                    return num(current.value[key]);
+                };
+
+                const bodyAnalysis = computed(() => {
+                    const h = fromFormOrCurrent('height');
+                    const w = fromFormOrCurrent('weight');
+                    const waist = fromFormOrCurrent('waist');
+                    const hips = fromFormOrCurrent('hips');
+
+                    let bmi = null;
+                    if (h && w && h > 0) {
+                        const hm = h / 100;
+                        bmi = w / (hm * hm);
+                    }
+                    let whr = null;
+                    if (waist && hips && hips > 0) whr = waist / hips;
+
+                    const bmiLabel = bmi === null
+                        ? '请填写身高和体重'
+                        : (bmi < 18.5 ? '偏瘦' : (bmi < 24 ? '正常' : (bmi < 28 ? '超重' : '肥胖')));
+
+                    const whrLabel = whr === null
+                        ? '请填写腰围和臀围'
+                        : (whr < 0.8 ? '较低风险' : (whr < 0.85 ? '中等风险' : '偏高风险'));
+
+                    return {
+                        bmi: bmi === null ? '--' : bmi.toFixed(1),
+                        whr: whr === null ? '--' : whr.toFixed(2),
+                        bmiLabel,
+                        whrLabel
+                    };
+                });
+
+                const renderChart = () => {
+                    nextTick(() => {
+                        const el = document.getElementById('metricChart');
+                        if (!el) return;
+                        if (chart) chart.dispose();
+                        chart = echarts.init(el);
+
+                        const data = activeMetricHistory.value;
+                        chart.setOption({
+                            color: ['#FFB7B2'],
+                            tooltip: { trigger: 'axis' },
+                            grid: { left: '10%', right: '8%', top: '10%', bottom: '12%', containLabel: true },
+                            xAxis: {
+                                type: 'category',
+                                boundaryGap: false,
+                                data: data.map(item => item.date.slice(5))
+                            },
+                            yAxis: { type: 'value', scale: true },
+                            series: [{
+                                type: 'line',
+                                smooth: true,
+                                symbol: 'circle',
+                                symbolSize: 7,
+                                data: data.map(item => item.value),
+                                areaStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: 'rgba(255, 183, 178, 0.45)' },
+                                        { offset: 1, color: 'rgba(255, 183, 178, 0)' }
+                                    ])
+                                }
+                            }]
+                        });
+                    });
+                };
+
+                const signOut = () => window.AuthUtils.signOut();
+
+                onMounted(async () => {
+                    const user = await window.AuthUtils.requireAuth();
+                    if (!user) return;
+                    displayName.value = window.AuthUtils.getDisplayName(user);
+                    await loadData();
+                    window.addEventListener('resize', () => {
+                        if (chart) chart.resize();
+                    });
+                });
+
+                return {
+                    activeNav,
+                    displayName,
+                    openEntries,
+                    showChart,
+                    history,
+                    current,
+                    form,
+                    metrics,
+                    activeMetric,
+                    activeMetricHistory,
+                    bodyAnalysis,
+                    onSave,
+                    openChart,
+                    toggleEntry,
+                    deleteEntry,
+                    renderChart,
+                    signOut
+                };
+            }
+        }).use(vant).mount('#app');
+    </script>
+</body>
+</html>

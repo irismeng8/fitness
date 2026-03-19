@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>登录 - Vitality Fitness</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+
+    <style>
+        body {
+            background: linear-gradient(160deg, #fff0ee 0%, #f0f7ff 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 24px 20px 40px;
+        }
+
+        .logo-area {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo-icon {
+            font-size: 52px;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .logo-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #FFB7B2;
+            letter-spacing: 1px;
+        }
+        .logo-sub {
+            font-size: 13px;
+            color: #bbb;
+            margin-top: 4px;
+        }
+
+        /* Tab switcher */
+        .auth-tabs {
+            display: flex;
+            background: #f0eded;
+            border-radius: 999px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            background: transparent;
+            border-radius: 999px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #bbb;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .auth-tab.active {
+            background: #fff;
+            color: #FFB7B2;
+            box-shadow: 0 2px 8px rgba(255,183,178,0.3);
+        }
+
+        /* Form */
+        .form-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 24px 20px;
+            box-shadow: 0 8px 32px rgba(255,183,178,0.15);
+        }
+        .field-group {
+            margin-bottom: 16px;
+        }
+        .field-label {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .field-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid #ebebeb;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            box-sizing: border-box;
+            background: #fafafa;
+            transition: border-color 0.2s;
+        }
+        .field-input:focus {
+            border-color: #FFB7B2;
+            background: #fff;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: #FFB7B2;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(255,183,178,0.45);
+            margin-top: 8px;
+            transition: all 0.15s;
+        }
+        .submit-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 rgba(255,183,178,0.45);
+        }
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .msg {
+            margin-top: 14px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+        .msg.error {
+            background: #fff0f0;
+            color: #e55;
+            display: block;
+        }
+        .msg.success {
+            background: #f0fff4;
+            color: #2a9d5c;
+            display: block;
+        }
+
+        .username-hint {
+            font-size: 11px;
+            color: #ccc;
+            margin-top: 4px;
+        }
+
+        .hint {
+            text-align: center;
+            font-size: 12px;
+            color: #ccc;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-area">
+            <div class="logo-icon">🏃‍♀️</div>
+            <div class="logo-title">Vitality Fitness</div>
+            <div class="logo-sub">你的专属健身记录本</div>
+        </div>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">登录</button>
+            <button class="auth-tab" id="tab-register" onclick="switchTab('register')">注册</button>
+        </div>
+
+        <div class="form-card">
+            <!-- Login Form -->
+            <div id="form-login">
+                <div class="field-group">
+                    <div class="field-label">用户名</div>
+                    <input class="field-input" type="text" id="login-username" placeholder="请输入用户名" autocomplete="username" />
+                </div>
+                <div class="field-group">
+                    <div class="field-label">密码</div>
+                    <input class="field-input" type="password" id="login-password" placeholder="请输入密码" autocomplete="current-password" />
+                </div>
+                <button class="submit-btn" id="btn-login" onclick="doLogin()">登录</button>
+                <div class="msg" id="msg-login"></div>
+            </div>
+
+            <!-- Register Form -->
+            <div id="form-register" style="display:none;">
+                <div class="field-group">
+                    <div class="field-label">用户名</div>
+                    <input class="field-input" type="text" id="reg-username" placeholder="设置你的用户名" autocomplete="username" />
+                    <div class="username-hint">只能包含字母、数字、下划线，3-20位</div>
+                </div>
+                <div class="field-group">
+                    <div class="field-label">密码（至少6位）</div>
+                    <input class="field-input" type="password" id="reg-password" placeholder="请设置密码" autocomplete="new-password" />
+                </div>
+                <div class="field-group">
+                    <div class="field-label">确认密码</div>
+                    <input class="field-input" type="password" id="reg-password2" placeholder="再次输入密码" autocomplete="new-password" />
+                </div>
+                <button class="submit-btn" id="btn-register" onclick="doRegister()">注册</button>
+                <div class="msg" id="msg-register"></div>
+            </div>
+        </div>
+
+        <div class="hint">
+            注册即表示同意服务条款<br>
+            数据安全存储于云端，随时随地访问
+        </div>
+    </div>
+
+    <script>
+        // Convert username → fake email for Supabase Auth
+        function toEmail(username) {
+            return username.trim().toLowerCase() + '@vitality.app';
+        }
+
+        // Validate username: letters, numbers, underscore, 3-20 chars
+        function isValidUsername(username) {
+            return /^[a-zA-Z0-9_]{3,20}$/.test(username.trim());
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            document.getElementById('form-login').style.display    = tab === 'login'    ? '' : 'none';
+            document.getElementById('form-register').style.display = tab === 'register' ? '' : 'none';
+            document.getElementById('tab-login').classList.toggle('active',    tab === 'login');
+            document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+        }
+
+        function showMsg(id, text, type) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = 'msg ' + type;
+        }
+
+        function setLoading(btnId, loading) {
+            const btn = document.getElementById(btnId);
+            btn.disabled = loading;
+            btn.textContent = loading ? '请稍候...' : (btnId === 'btn-login' ? '登录' : '注册');
+        }
+
+        // Wait for Supabase to be ready then check existing session
+        document.addEventListener('supabase-ready', async () => {
+            const { data: { session } } = await window._sb.auth.getSession();
+            if (session) {
+                window.location.href = 'index.html';
+            }
+        });
+
+        async function doLogin() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!username || !password) {
+                showMsg('msg-login', '请填写用户名和密码', 'error'); return;
+            }
+
+            setLoading('btn-login', true);
+            const email = toEmail(username);
+            const { error } = await window._sb.auth.signInWithPassword({ email, password });
+            setLoading('btn-login', false);
+
+            if (error) {
+                const msg = error.message.includes('Invalid login') ? '用户名或密码错误' : error.message;
+                showMsg('msg-login', msg, 'error');
+            } else {
+                showMsg('msg-login', '登录成功，跳转中...', 'success');
+                setTimeout(() => { window.location.href = 'index.html'; }, 600);
+            }
+        }
+
+        async function doRegister() {
+            const username = document.getElementById('reg-username').value.trim();
+            const pw1      = document.getElementById('reg-password').value;
+            const pw2      = document.getElementById('reg-password2').value;
+
+            if (!username || !pw1 || !pw2) {
+                showMsg('msg-register', '请填写所有字段', 'error'); return;
+            }
+            if (!isValidUsername(username)) {
+                showMsg('msg-register', '用户名只能包含字母、数字、下划线，长度3-20位', 'error'); return;
+            }
+            if (pw1.length < 6) {
+                showMsg('msg-register', '密码至少6位', 'error'); return;
+            }
+            if (pw1 !== pw2) {
+                showMsg('msg-register', '两次密码不一致', 'error'); return;
+            }
+
+            setLoading('btn-register', true);
+            const email = toEmail(username);
+            const { data, error } = await window._sb.auth.signUp({ email, password: pw1 });
+            setLoading('btn-register', false);
+
+            if (error) {
+                const msg = error.message.includes('already registered') ? '该用户名已被注册，请换一个' : error.message;
+                showMsg('msg-register', msg, 'error');
+                return;
+            }
+
+            // Seed preset videos for new user
+            if (data.user) {
+                await seedPresetsForUser(data.user.id);
+            }
+
+            showMsg('msg-register', '注册成功！正在进入...', 'success');
+            setTimeout(() => { window.location.href = 'index.html'; }, 800);
+        }
+
+        // Insert preset videos into Supabase for a new user
+        async function seedPresetsForUser(userId) {
+            const PRESET_VIDEOS = [
+                { title: '30分钟全程站立有氧燃脂操｜无跳跃无深蹲膝友好【周六野Zoey】', link: 'https://b23.tv/RrBls3p', bvid: 'BV1C741177M8', duration: '30min', category: '燃脂', sub_category: '低强度燃脂', features: ['全程站立','无跳跃','膝盖友好','新手','大基数','经期友好'], plays: '1800万+', type: 'cardio', preset: true },
+                { title: '【每天一遍，想不瘦都难！】30分钟站立无跑跳有氧暴汗燃脂操，新手/大基数友好（韩小四）', link: 'https://b23.tv/qhpWGtM', bvid: '', duration: '30min', category: '燃脂', sub_category: '低强度燃脂', features: ['全程站立','无跑跳','不伤膝','低冲击','新手'], plays: '2500万+', type: 'cardio', preset: true },
+                { title: '帕梅拉 - 10分钟HIIT燃脂！高强全身燃脂训练 无器械 (Pamela Reif Official)', link: 'https://b23.tv/Ycffw97', bvid: '', duration: '10min', category: '燃脂', sub_category: 'HIIT强化', features: ['HIIT','高强度','无器械','全身燃脂'], plays: '千万级+', type: 'cardio', preset: true },
+                { title: 'Eleni Fit - 30分钟无跳跃有氧HIIT舞蹈 暴汗刷脂', link: 'https://b23.tv/bL1qgDT', bvid: '', duration: '30min', category: '燃脂', sub_category: 'HIIT强化', features: ['HIIT','无跳跃','有氧舞蹈','暴汗'], plays: '千万级+', type: 'cardio', preset: true },
+                { title: '帕梅拉 - 10分钟暴汗有氧｜内啡肽UP 欢乐高强有氧舞步 (PamelaReif Official)', link: 'https://b23.tv/CIDVvwA', bvid: '', duration: '10min', category: '燃脂', sub_category: '全身燃脂', features: ['新手友好','音乐欢快','有氧跳操','低门槛'], plays: '1600万+', type: 'cardio', preset: true },
+                { title: '帕梅拉 - 15分钟普拉提训练|慢速全身紧实 膝盖友好低冲击 (Pamela Reif Official)', link: 'https://b23.tv/86TfLXQ', bvid: '', duration: '15min', category: '塑形', sub_category: '全身塑形', features: ['普拉提','全身紧实','膝盖友好','低冲击'], plays: '千万级+', type: 'strength', preset: true },
+                { title: '沙漏腰3.0进阶｜30分钟站立无跑跳核心训练', link: 'https://b23.tv/3d6yuHo', bvid: 'BV1mT411n7Qj', duration: '30min', category: '塑形', sub_category: '腰腹核心', features: ['站立无跑跳','核心强化','改善体态','进阶'], plays: '1200万+', type: 'strength', preset: true },
+                { title: '每天10min，轻松get直角肩＋少女背! 消除猥琐斜方肌!圆肩驼背必看！', link: 'https://www.bilibili.com/video/BV1Yk4y1d7Wn/', bvid: 'BV1Yk4y1d7Wn', duration: '10min', category: '塑形', sub_category: '肩背手臂', features: ['改善圆肩驼背','少女背','直角肩','新手'], plays: '5800万+', type: 'strength', preset: true },
+                { title: '周六野5分钟瘦腰马甲线养成', link: 'https://www.bilibili.com/video/BV1ax411y7zQ/', bvid: 'BV1ax411y7zQ', duration: '5min', category: '塑形', sub_category: '腰腹核心', features: ['超短','床上可做','新手','低强度'], plays: '3300万+', type: 'strength', preset: true },
+                { title: '【Pamela Reif 帕梅拉】10分钟腹部训练 | 新手友好 | 练就钢铁马甲线 | 帕老师带你运动燃脂', link: 'https://b23.tv/utm6IJ0', bvid: '', duration: '10min', category: '塑形', sub_category: '腰腹核心', features: ['无器械','居家','新手友好'], plays: '2900万+', type: 'strength', preset: true },
+                { title: '【我来B站啦！】美丽芭蕾-15min修炼天鹅臂，告别拜拜肉', link: 'https://b23.tv/U5Rs6oQ', bvid: '', duration: '15min', category: '塑形', sub_category: '肩背手臂', features: ['塑形','线条优美','女性向'], plays: '6700万+', type: 'strength', preset: true },
+                { title: '周六野5分钟瘦手臂｜无工具、显锁骨', link: 'https://www.bilibili.com/video/BV1yW411N7uG/', bvid: 'BV1yW411N7uG', duration: '5min', category: '塑形', sub_category: '肩背手臂', features: ['超短','懒人','零基础'], plays: '1900万+', type: 'strength', preset: true },
+                { title: '【虐腿】高强度瘦腿｜普拉提100次大腿外侧＋100次内侧', link: 'https://b23.tv/IZXcAxA', bvid: 'BV1qE411x7nV', duration: '14min', category: '塑形', sub_category: '臀腿塑形', features: ['普拉提','高强度','塑形','梨形友好'], plays: '2100万+', type: 'strength', preset: true },
+                { title: '12分钟无跑跳快速瘦小腿，3天见效！肌肉腿&水肿腿必做【韩小四AprilHan】', link: 'https://b23.tv/y4Dc1PF', bvid: '', duration: '12min', category: '塑形', sub_category: '臀腿塑形', features: ['无跑跳','不伤膝','瘦小腿'], plays: '2300万+', type: 'strength', preset: true },
+                { title: '[去头尾]林芊妤20mins瘦大腿操', link: 'https://b23.tv/M57OlPN', bvid: '', duration: '20min', category: '塑形', sub_category: '臀腿塑形', features: ['强度较高','塑形明显'], plays: '3100万+', type: 'strength', preset: true },
+                { title: '10分钟瘦小腿运动｜10天见效！超高效消肿、拉伸燃脂，让小腿线条更细长更柔和【周六野Zoey】', link: 'https://b23.tv/Cw1bMSD', bvid: '', duration: '10min', category: '塑形', sub_category: '臀腿塑形', features: ['拉伸为主','放松塑形','懒人友好'], plays: '1800万+', type: 'strength', preset: true },
+                { title: '20分钟根本性纠正不良腿型｜下肢力线回正私教课｜足弓重建4.0版', link: 'https://b23.tv/6IBAxlC', bvid: '', duration: '20min', category: '矫正', sub_category: '腿型矫正', features: ['纠正腿型','足弓重建','直腿','私教级'], plays: '千万级+', type: 'strength', preset: true },
+                { title: '10分钟改善膝超伸运动｜瘦腿必练｜无深蹲膝盖友好【韩小四April】', link: 'https://b23.tv/7CbFz7P', bvid: '', duration: '10min', category: '矫正', sub_category: '腿型矫正', features: ['无深蹲','膝盖友好','瘦腿','体态矫正'], plays: '1189万+', type: 'strength', preset: true },
+                { title: '10分钟矫正小腿外翻，get直长腿，亲测一周见效【韩小四April】', link: 'https://b23.tv/opoySW0', bvid: '', duration: '10min', category: '矫正', sub_category: '腿型矫正', features: ['直腿','小腿矫正','无跑跳','新手友好'], plays: '1676万+', type: 'strength', preset: true },
+                { title: '帕梅拉5分钟全身拉伸｜运动后放松', link: 'https://www.bilibili.com/video/BV1Zz4y1o7Vx/', bvid: 'BV1Zz4y1o7Vx', duration: '5min', category: '矫正', sub_category: '拉伸放松', features: ['短','舒缓','必练'], plays: '2200万+', type: 'strength', preset: true }
+            ];
+
+            const rows = PRESET_VIDEOS.map(v => ({ ...v, user_id: userId }));
+            await window._sb.from('videos').insert(rows);
+        }
+
+        // Allow pressing Enter to submit
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            const isLogin = document.getElementById('form-login').style.display !== 'none';
+            if (isLogin) doLogin(); else doRegister();
+        });
+    </script>
+</body>
+</html>
